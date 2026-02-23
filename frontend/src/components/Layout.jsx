@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, Map, TreePine, ClipboardList,
-  MapPin, BarChart3, LogOut, Menu, X, Bell
+  MapPin, BarChart3, LogOut, Menu, X, Bell, Sparkles
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/tasks', icon: ClipboardList, label: 'Tasks' },
   { to: '/zones', icon: MapPin, label: 'Zones' },
   { to: '/reports', icon: BarChart3, label: 'Reports' },
+  { to: '/ai', icon: Sparkles, label: 'AI Assistant' },
 ]
 
 export default function Layout() {
