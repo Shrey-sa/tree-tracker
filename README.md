@@ -1,6 +1,11 @@
 # 🌳 Tree & Green Asset Tracker
 
-A full-stack web application for municipalities and NGOs to track urban trees — from planting to maturity. Field workers geo-tag trees with photos, supervisors assign maintenance tasks, and admins monitor city-wide green coverage through an interactive map dashboard.
+A full-stack web application for municipalities and NGOs to track urban trees — from planting to maturity. Field workers geo-tag trees with photos, supervisors assign maintenance tasks, and admins monitor city-wide green coverage through an interactive map and dashboard.
+
+**Live Demo:**
+- 🌐 Frontend: https://tree-tracker-wheat.vercel.app
+- ⚙️ Backend API: https://treetracker-backend.onrender.com/api/
+- 📖 API Docs: https://treetracker-backend.onrender.com/api/docs/
 
 ---
 
@@ -8,44 +13,57 @@ A full-stack web application for municipalities and NGOs to track urban trees �
 
 ```
 tree-tracker/
-├── backend/           # Django + DRF + Celery
-│   ├── config/        # Settings, URLs, Celery config
+├── backend/              # Django + DRF
+│   ├── config/           # Settings, URLs
 │   ├── apps/
-│   │   ├── accounts/  # Custom user model, JWT auth, roles
-│   │   ├── zones/     # City zones management
-│   │   ├── trees/     # Tree registry, health logs, species
-│   │   ├── tasks/     # Maintenance task workflows
-│   │   └── reports/   # Analytics, PDF/CSV export
+│   │   ├── accounts/     # Custom user model, JWT auth, roles
+│   │   ├── zones/        # City zones management
+│   │   ├── trees/        # Tree registry, health logs, species
+│   │   ├── tasks/        # Maintenance task workflows
+│   │   └── reports/      # Analytics, PDF/CSV export
 │   └── manage.py
-├── frontend/          # React + Tailwind + Leaflet
+├── frontend/             # React + Tailwind + Leaflet
 │   └── src/
-│       ├── pages/     # Dashboard, Map, Trees, Tasks, Zones, Reports
-│       ├── components/ # Layout, sidebar
-│       ├── context/   # Auth context
-│       └── services/  # Axios API client
-├── docker-compose.yml
-└── .github/workflows/ # CI/CD pipeline
+│       ├── pages/        # Dashboard, Map, Trees, Tasks, Zones, Reports
+│       ├── components/   # Layout, sidebar
+│       ├── context/      # Auth context
+│       └── services/     # Axios API client
+├── docker-compose.yml    # Local development
+└── .github/workflows/    # CI pipeline
 ```
 
 ---
 
-## 🚀 Quick Start (Docker)
+## ☁️ Deployment Stack (Free Tier)
+
+| Service | Platform | Purpose |
+|---------|----------|---------|
+| Frontend | Vercel | React app hosting |
+| Backend | Render | Django + Gunicorn |
+| Database | Render PostgreSQL | Primary database |
+| Images | Cloudinary | Tree photo storage |
+| CI | GitHub Actions | Automated testing |
+
+---
+
+## 🚀 Quick Start (Docker - Local Dev)
 
 ```bash
 # Clone the repo
-git clone https://github.com/yourusername/tree-tracker.git
+git clone https://github.com/Shrey-sa/tree-tracker.git
 cd tree-tracker
 
-# Start everything
+# Start everything (db + backend + frontend)
 docker-compose up --build
 
-# App will be running at:
+# App running at:
 #   Frontend: http://localhost:5173
 #   Backend:  http://localhost:8000
 #   API Docs: http://localhost:8000/api/docs/
 ```
 
 **Demo credentials:**
+
 | Role | Username | Password |
 |------|----------|----------|
 | Admin | `admin` | `admin123` |
@@ -63,7 +81,7 @@ cd backend
 
 # Create virtual environment
 python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+source venv/bin/activate   # Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
@@ -72,7 +90,8 @@ pip install -r requirements.txt
 cp .env.example .env
 # Edit .env with your PostgreSQL credentials
 
-# Run migrations & seed data
+# Run migrations & seed demo data
+python manage.py makemigrations accounts zones trees tasks
 python manage.py migrate
 python manage.py seed_data
 
@@ -86,13 +105,6 @@ python manage.py runserver
 cd frontend
 npm install
 npm run dev
-```
-
-### Celery (for background tasks & email alerts)
-
-```bash
-cd backend
-celery -A config worker --beat --loglevel=info
 ```
 
 ---
@@ -110,92 +122,71 @@ celery -A config worker --beat --loglevel=info
 ### Trees
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/trees/` | List trees (filterable) |
-| POST | `/api/trees/` | Register new tree |
-| GET | `/api/trees/:id/` | Tree detail with health history |
+| GET | `/api/trees/` | List trees (filterable by zone, health, species) |
+| POST | `/api/trees/` | Register new tree with photo |
+| GET | `/api/trees/:id/` | Tree detail with full health history |
 | PATCH | `/api/trees/:id/health/` | Update health status |
-| GET | `/api/trees/map/` | Lightweight map data |
+| GET | `/api/trees/map/` | Lightweight map markers data |
+| GET | `/api/species/` | List all species |
+
+### Zones
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/zones/` | List all zones |
+| POST | `/api/zones/` | Create zone |
+| GET | `/api/zones/:id/stats/` | Zone health breakdown |
 
 ### Tasks
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/tasks/` | List tasks |
-| POST | `/api/tasks/` | Create task (supervisor/admin) |
-| PATCH | `/api/tasks/:id/complete/` | Mark task complete |
+| GET | `/api/tasks/` | List tasks (field workers see only their own) |
+| POST | `/api/tasks/` | Create task (supervisor/admin only) |
+| PATCH | `/api/tasks/:id/complete/` | Mark task complete with notes |
 
 ### Reports
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/reports/summary/` | City-wide stats |
-| GET | `/api/reports/trends/` | Monthly trends |
+| GET | `/api/reports/summary/` | City-wide stats dashboard |
+| GET | `/api/reports/trends/` | 12-month planting trends |
 | GET | `/api/reports/export/pdf/` | Download PDF report |
-| GET | `/api/reports/export/csv/` | Download trees CSV |
+| GET | `/api/reports/export/csv/` | Download full tree registry CSV |
 
 ---
 
-## 👥 User Roles
+## 👥 User Roles & Permissions
 
-| Role | Permissions |
-|------|-------------|
-| **Admin** | Full access — create users, view all zones, download reports |
-| **Supervisor** | Create/assign tasks, view zone data, trigger alerts |
-| **Field Worker** | Register trees, update health status, complete assigned tasks |
+| Role | What they can do |
+|------|-----------------|
+| **Admin** | Full access — manage users, all zones, all tasks, download reports |
+| **Supervisor** | Create and assign maintenance tasks, view zone stats |
+| **Field Worker** | Register trees, update health status, complete their assigned tasks |
 
 ---
 
 ## 🌟 Key Features
 
-- **Interactive Map** — Leaflet.js map with color-coded tree health markers, click-to-view popup with tree details
-- **Tree Registry** — Each tree gets a unique tag (TRK-00001), species info, GPS coordinates, photo, health history
-- **Health Timeline** — Every health status change is logged with who made the update and when
-- **Maintenance Workflows** — Supervisors assign water/prune/treat tasks to field workers with due dates and priorities
-- **Automated Alerts** — Celery + Redis sends daily email digests for overdue tasks and trees not inspected in 14 days
-- **Reports & Export** — City-wide survival rate, zone comparison charts, downloadable PDF and CSV reports
-- **JWT Auth** — Role-based access control across all endpoints
-
----
-
-## ☁️ Cloud Deployment
-
-### AWS Stack
-- **EC2** — Backend (Gunicorn + Nginx)
-- **RDS** — PostgreSQL (or PostgreSQL + PostGIS)
-- **S3** — Tree photos and media storage
-- **ElastiCache** — Redis for Celery
-- **SES** — Email notifications
-
-### Enable S3 Storage
-```env
-USE_S3=True
-AWS_ACCESS_KEY_ID=your-key
-AWS_SECRET_ACCESS_KEY=your-secret
-AWS_STORAGE_BUCKET_NAME=your-bucket
-AWS_S3_REGION_NAME=ap-south-1
-```
-
-### Enable PostGIS (for advanced geo queries)
-```env
-DB_ENGINE=django.contrib.gis.db.backends.postgis
-```
-Then you can use GeoDjango's `PointField`, `PolygonField`, and spatial queries:
-```python
-# Find all trees within 500m of a point
-Tree.objects.filter(location__distance_lte=(point, D(m=500)))
-```
+- **Interactive Map** — Leaflet.js map with color-coded health markers (green/amber/red), click popup with tree details and direct link to tree page
+- **Tree Registry** — Each tree gets a unique auto-generated tag (TRK-00001), species info, GPS coordinates, photo upload, and full health history timeline
+- **Health Tracking** — Every health update is logged with who made the change, previous status, new status, notes, and timestamp
+- **Maintenance Workflows** — Supervisors create water/prune/treat/inspect tasks with priority levels and due dates, assigned to specific field workers
+- **Reports & Export** — City-wide survival rates, zone comparison charts, monthly planting trends, downloadable PDF and CSV
+- **Cloudinary Image Storage** — Tree photos uploaded by field workers are stored on Cloudinary and persist across deployments
+- **JWT Authentication** — Role-based access control across all API endpoints, 24h access tokens with auto-refresh
 
 ---
 
 ## 🗂️ Database Schema
 
 ```
-users → (id, username, role, zone_fk)
-zones → (id, name, city, center_lat, center_lng, area_sq_km)
-species → (id, common_name, scientific_name, watering_frequency_days)
-trees → (id, tag_number, species_fk, zone_fk, latitude, longitude, 
-         current_health, planted_date, photo, planted_by_fk)
-health_logs → (id, tree_fk, logged_by_fk, previous_health, health_status, logged_at)
-maintenance_tasks → (id, title, task_type, priority, zone_fk, tree_fk,
-                     assigned_to_fk, due_date, status, completed_at)
+users          → id, username, email, role (admin/supervisor/field_worker)
+zones          → id, name, city, center_lat, center_lng, area_sq_km
+species        → id, common_name, scientific_name, watering_frequency_days, native
+trees          → id, tag_number, species_fk, zone_fk, latitude, longitude,
+                 current_health, planted_date, height_cm, photo, planted_by_fk
+health_logs    → id, tree_fk, logged_by_fk, previous_health, health_status,
+                 notes, photo, logged_at
+maintenance_tasks → id, title, task_type, priority, zone_fk, tree_fk,
+                    assigned_to_fk, due_date, status, completed_at, completed_by_fk
 ```
 
 ---
@@ -204,25 +195,29 @@ maintenance_tasks → (id, title, task_type, priority, zone_fk, tree_fk,
 
 | Layer | Technology |
 |-------|------------|
-| Frontend | React 18, Tailwind CSS, Leaflet.js, Recharts |
-| Backend | Django 4.2, Django REST Framework |
+| Frontend | React 18, React Router 6, Tailwind CSS |
+| Maps | Leaflet.js + react-leaflet |
+| Charts | Recharts |
+| Backend | Django 4.2, Django REST Framework 3.14 |
 | Auth | JWT (djangorestframework-simplejwt) |
-| Database | PostgreSQL (+ PostGIS ready) |
-| Cache/Queue | Redis, Celery |
-| Storage | Local media / AWS S3 |
-| Deployment | Docker, GitHub Actions, EC2 |
+| Database | PostgreSQL 15 |
+| Image Storage | Cloudinary |
+| Static Files | WhiteNoise |
 | API Docs | drf-spectacular (Swagger UI) |
+| Frontend Deploy | Vercel |
+| Backend Deploy | Render (Docker) |
+| CI | GitHub Actions |
 
 ---
 
-## 📝 Interview Talking Points
+## 🌱 Seed Data
 
-1. **"I used Django REST Framework with custom permission classes for role-based access control — field workers can only complete their own tasks, supervisors manage their zone, admins see everything."**
+Running `python manage.py seed_data` creates:
 
-2. **"The architecture is PostGIS-ready — I designed the models with lat/lng fields that can be upgraded to PostGIS PointFields to enable spatial queries like 'find all trees within 500 meters' without any schema changes."**
+- 5 zones (Bangalore North/South/East/West/Central)
+- 8 tree species (Neem, Peepal, Gulmohar, Banyan, Rain Tree, Tamarind, Ashoka, Silver Oak)
+- 9 users (1 admin, 3 supervisors, 5 field workers)
+- 240 trees across all zones with realistic health distribution
+- 40 maintenance tasks with varied statuses and priorities
 
-3. **"I built a Celery beat scheduler that runs every morning at 8am — it queries trees not inspected in 14 days and sends supervisor email digests, completely automated."**
-
-4. **"The map view uses a dedicated lightweight API endpoint (`/api/trees/map/`) that returns only the fields needed for rendering markers — id, lat, lng, health, tag — instead of the full tree payload. This was a deliberate optimization."**
-
-5. **"I used django-storages with S3 for media — tree photos uploaded by field workers in the field go straight to an S3 bucket, and the app works identically in dev (local) and prod (S3) by just flipping a USE_S3 env var."**
+---
