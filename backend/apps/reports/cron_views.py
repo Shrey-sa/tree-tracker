@@ -1,9 +1,6 @@
-"""
-Secure endpoints for GitHub Actions cron jobs to trigger email tasks.
-Returns immediately and runs email task in a background thread.
-"""
 import os
 import threading
+import traceback
 from django.http import JsonResponse
 from django.views import View
 from django.utils.decorators import method_decorator
@@ -16,28 +13,23 @@ def verify_cron_token(request):
     return token == expected and expected != ''
 
 
-def run_in_background(fn):
-    """Run a function in a background thread"""
-    t = threading.Thread(target=fn, daemon=True)
-    t.start()
-
-
 @method_decorator(csrf_exempt, name='dispatch')
 class SendOverdueAlertsView(View):
     def post(self, request):
         if not verify_cron_token(request):
             return JsonResponse({'error': 'Unauthorized'}, status=401)
 
-        def task():
-            try:
-                from apps.tasks.tasks import send_overdue_task_alerts
-                result = send_overdue_task_alerts()
-                print(f"[CRON] Overdue alerts: {result}")
-            except Exception as e:
-                print(f"[CRON] Overdue alerts error: {e}")
-
-        run_in_background(task)
-        return JsonResponse({'status': 'accepted', 'message': 'Overdue alerts job started'})
+        # Run synchronously so errors show in logs
+        try:
+            print("[CRON] Starting overdue alerts task...")
+            from apps.tasks.tasks import send_overdue_task_alerts
+            result = send_overdue_task_alerts()
+            print(f"[CRON] Overdue alerts done: {result}")
+            return JsonResponse({'status': 'success', 'result': result})
+        except Exception as e:
+            tb = traceback.format_exc()
+            print(f"[CRON] Overdue alerts FAILED:\n{tb}")
+            return JsonResponse({'status': 'error', 'message': str(e), 'traceback': tb}, status=500)
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -46,13 +38,13 @@ class SendInspectionRemindersView(View):
         if not verify_cron_token(request):
             return JsonResponse({'error': 'Unauthorized'}, status=401)
 
-        def task():
-            try:
-                from apps.trees.tasks import send_health_check_reminders
-                result = send_health_check_reminders()
-                print(f"[CRON] Inspection reminders: {result}")
-            except Exception as e:
-                print(f"[CRON] Inspection reminders error: {e}")
-
-        run_in_background(task)
-        return JsonResponse({'status': 'accepted', 'message': 'Inspection reminders job started'})
+        try:
+            print("[CRON] Starting inspection reminders task...")
+            from apps.trees.tasks import send_health_check_reminders
+            result = send_health_check_reminders()
+            print(f"[CRON] Inspection reminders done: {result}")
+            return JsonResponse({'status': 'success', 'result': result})
+        except Exception as e:
+            tb = traceback.format_exc()
+            print(f"[CRON] Inspection reminders FAILED:\n{tb}")
+            return JsonResponse({'status': 'error', 'message': str(e), 'traceback': tb}, status=500)
