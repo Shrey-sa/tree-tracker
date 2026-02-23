@@ -24,17 +24,18 @@ jobs:
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'overdue_alerts' || github.event.inputs.job == 'both')) ||
       (github.event_name == 'schedule' && github.event.schedule == '30 2 * * *')
     steps:
-      - name: Wake up Render (free tier spins down)
+      - name: Wake up Render
         run: |
           echo "Waking up Render service..."
-          curl -s "${{ secrets.BACKEND_URL }}/api/schema/" > /dev/null || true
+          curl -s --max-time 60 "${{ secrets.BACKEND_URL }}/api/schema/" > /dev/null || true
           echo "Waiting 30s for service to fully wake..."
           sleep 30
 
       - name: Send overdue alerts
         run: |
           response=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
-            --max-time 60 \
+            --max-time 120 \
+            --connect-timeout 30 \
             -X POST \
             -H "X-Cron-Token: ${{ secrets.CRON_SECRET_TOKEN }}" \
             "${{ secrets.BACKEND_URL }}/api/cron/overdue-alerts/")
@@ -44,7 +45,7 @@ jobs:
             echo "❌ Failed with status $response"
             exit 1
           fi
-          echo "✅ Overdue alerts sent successfully"
+          echo "✅ Overdue alerts triggered successfully"
 
   send-inspection-reminders:
     name: Send Inspection Reminders
@@ -53,17 +54,18 @@ jobs:
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'inspection_reminders' || github.event.inputs.job == 'both')) ||
       (github.event_name == 'schedule' && github.event.schedule == '30 3 * * *')
     steps:
-      - name: Wake up Render (free tier spins down)
+      - name: Wake up Render
         run: |
           echo "Waking up Render service..."
-          curl -s "${{ secrets.BACKEND_URL }}/api/schema/" > /dev/null || true
+          curl -s --max-time 60 "${{ secrets.BACKEND_URL }}/api/schema/" > /dev/null || true
           echo "Waiting 30s for service to fully wake..."
           sleep 30
 
       - name: Send inspection reminders
         run: |
           response=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
-            --max-time 60 \
+            --max-time 120 \
+            --connect-timeout 30 \
             -X POST \
             -H "X-Cron-Token: ${{ secrets.CRON_SECRET_TOKEN }}" \
             "${{ secrets.BACKEND_URL }}/api/cron/inspection-reminders/")
@@ -73,4 +75,4 @@ jobs:
             echo "❌ Failed with status $response"
             exit 1
           fi
-          echo "✅ Inspection reminders sent successfully"
+          echo "✅ Inspection reminders triggered successfully"
