@@ -13,5 +13,4 @@ urlpatterns = [
     path('api/', include('apps.trees.urls')),
     path('api/', include('apps.tasks.urls')),
     path('api/', include('apps.reports.urls')),
-    path('api/', include('apps.reports.ai_urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
