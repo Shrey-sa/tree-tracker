@@ -19,14 +19,14 @@ from rest_framework.response import Response
 
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-GEMINI_TEXT_URL = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}'
-GEMINI_VISION_URL = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}'
+GEMINI_TEXT_URL = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={GEMINI_API_KEY}'
+GEMINI_VISION_URL = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={GEMINI_API_KEY}'
 
 
 def call_gemini(payload):
     """Make a call to Gemini API"""
     api_key = os.environ.get('GEMINI_API_KEY', '')
-    url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}'
+    url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={api_key}'
 
     data = json.dumps(payload).encode('utf-8')
     req = urllib.request.Request(
