@@ -5,6 +5,7 @@ Supports: Local, Docker, Render, Railway, and other PaaS platforms
 import os
 from pathlib import Path
 from datetime import timedelta
+import cloudinary
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -162,6 +163,18 @@ if USE_S3:
     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.environ.get('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.environ.get('CLOUDINARY_API_SECRET'),
+}
+
+USE_CLOUDINARY = os.environ.get('USE_CLOUDINARY', 'False') == 'True'
+if USE_CLOUDINARY:
+    DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
 
 # ── Celery ────────────────────────────────────────────────────
 CELERY_BROKER_URL = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
