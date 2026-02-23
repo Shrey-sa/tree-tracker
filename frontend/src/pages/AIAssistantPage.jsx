@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
+import { diagnoseTreeHealth, getMaintenanceAdvice, generateReportSummary } from '../services/groq'
 import { Sparkles, TreePine, ClipboardList, BarChart3, Upload, Loader2, ChevronRight, AlertTriangle, CheckCircle, Info } from 'lucide-react'
 
-// ── Shared helpers ──────────────────────────────────────────────────────────
 const PriorityBadge = ({ priority }) => {
   const colors = {
     urgent: 'bg-red-100 text-red-700 border-red-200',
@@ -33,7 +32,7 @@ const AssessmentBadge = ({ level }) => {
   )
 }
 
-// ── Feature 1: AI Health Diagnosis ─────────────────────────────────────────
+// ── Feature 1: Health Diagnosis ────────────────────────────────────────────
 function HealthDiagnosis() {
   const [image, setImage] = useState(null)
   const [imageBase64, setImageBase64] = useState(null)
@@ -48,27 +47,18 @@ function HealthDiagnosis() {
     setImage(URL.createObjectURL(file))
     setImageMime(file.type)
     const reader = new FileReader()
-    reader.onload = () => {
-      const base64 = reader.result.split(',')[1]
-      setImageBase64(base64)
-    }
+    reader.onload = () => setImageBase64(reader.result.split(',')[1])
     reader.readAsDataURL(file)
   }
 
   const analyze = async () => {
     if (!imageBase64) return
-    setLoading(true)
-    setError(null)
-    setResult(null)
+    setLoading(true); setError(null); setResult(null)
     try {
-      const res = await api.post('/ai/health-diagnosis/', {
-        image_base64: imageBase64,
-        image_mime: imageMime,
-        tree_info: { species: 'Unknown', zone: 'Unknown', current_health: 'unknown' }
-      })
-      setResult(res.data.diagnosis)
+      const result = await diagnoseTreeHealth(imageBase64, imageMime)
+      setResult(result)
     } catch (e) {
-      setError(e.response?.data?.error || 'Analysis failed. Please try again.')
+      setError(e.message || 'Analysis failed. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -78,12 +68,10 @@ function HealthDiagnosis() {
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Upload */}
       <div className="card">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Upload size={18} className="text-forest-600" /> Upload Tree Photo
         </h3>
-
         <label className="block cursor-pointer">
           <div className={`border-2 border-dashed rounded-xl overflow-hidden transition-colors
             ${image ? 'border-forest-300' : 'border-gray-200 hover:border-forest-300'}`}>
@@ -99,53 +87,36 @@ function HealthDiagnosis() {
           </div>
           <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
         </label>
-
-        <button
-          onClick={analyze}
-          disabled={!imageBase64 || loading}
-          className="btn-primary w-full mt-4 flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          {loading ? (
-            <><Loader2 size={16} className="animate-spin" /> Analyzing with Gemini AI...</>
-          ) : (
-            <><Sparkles size={16} /> Diagnose Tree Health</>
-          )}
+        <button onClick={analyze} disabled={!imageBase64 || loading}
+          className="btn-primary w-full mt-4 flex items-center justify-center gap-2 disabled:opacity-50">
+          {loading ? <><Loader2 size={16} className="animate-spin" /> Analyzing with Groq AI...</>
+            : <><Sparkles size={16} /> Diagnose Tree Health</>}
         </button>
-
-        {error && (
-          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-            {error}
-          </div>
-        )}
+        {error && <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
       </div>
 
-      {/* Results */}
       <div className="card">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <Sparkles size={18} className="text-purple-500" /> AI Diagnosis
         </h3>
-
         {!result && !loading && (
           <div className="h-64 flex flex-col items-center justify-center text-gray-400">
             <Sparkles size={40} className="mb-3 opacity-20" />
             <p className="text-sm">Upload a photo to get AI diagnosis</p>
           </div>
         )}
-
         {loading && (
           <div className="h-64 flex flex-col items-center justify-center">
             <Loader2 size={40} className="animate-spin text-forest-500 mb-3" />
-            <p className="text-sm text-gray-500">Gemini is analyzing your tree...</p>
+            <p className="text-sm text-gray-500">LLaMA 3.3 is analyzing your tree...</p>
           </div>
         )}
-
         {result && !loading && (
           <div className="space-y-4">
-            {/* Health Status */}
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
               <div>
                 <div className="text-xs text-gray-500 mb-0.5">Diagnosed Health</div>
-                <div className={`text-lg font-bold ${healthColors[result.health_status]}`}>
+                <div className={`text-lg font-bold ${healthColors[result.health_status] || 'text-gray-700'}`}>
                   {result.health_status?.replace('_', ' ').toUpperCase()}
                 </div>
               </div>
@@ -154,39 +125,28 @@ function HealthDiagnosis() {
                 <PriorityBadge priority={result.confidence} />
               </div>
             </div>
-
-            {/* Diagnosis */}
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Diagnosis</div>
               <p className="text-sm text-gray-700 leading-relaxed">{result.diagnosis}</p>
             </div>
-
-            {/* Issues */}
             {result.issues_detected?.length > 0 && (
               <div>
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Issues Detected</div>
                 <div className="flex flex-wrap gap-2">
                   {result.issues_detected.map((issue, i) => (
-                    <span key={i} className="text-xs bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-lg">
-                      {issue}
-                    </span>
+                    <span key={i} className="text-xs bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-lg">{issue}</span>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* Recommendation */}
             <div className="p-3 bg-forest-50 border border-forest-200 rounded-xl">
               <div className="text-xs font-semibold text-forest-700 mb-1 flex items-center gap-1">
                 <CheckCircle size={12} /> Recommended Action
               </div>
               <p className="text-sm text-forest-800">{result.recommended_action}</p>
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-forest-600">Suggested task:</span>
                 <PriorityBadge priority={result.urgency} />
-                <span className="text-xs font-medium text-forest-700 bg-forest-100 px-2 py-0.5 rounded-full">
-                  {result.task_type}
-                </span>
+                <span className="text-xs font-medium text-forest-700 bg-forest-100 px-2 py-0.5 rounded-full">{result.task_type}</span>
               </div>
             </div>
           </div>
@@ -216,61 +176,77 @@ function MaintenanceAdvisor() {
 
   const analyze = async () => {
     if (!selectedZone) return
-    setLoading(true)
-    setError(null)
-    setResult(null)
+    setLoading(true); setError(null); setResult(null)
     try {
-      const res = await api.post('/ai/maintenance-advisor/', { zone_id: selectedZone })
-      setResult(res.data)
+      // Fetch zone stats from backend
+      const [zonesRes, treesRes, tasksRes] = await Promise.all([
+        api.get('/zones/'),
+        api.get(`/trees/?zone=${selectedZone}&page_size=500`),
+        api.get(`/tasks/?zone=${selectedZone}&status=pending`),
+      ])
+
+      const zone = (zonesRes.data.results || zonesRes.data).find(z => z.id == selectedZone)
+      const trees = treesRes.data.results || treesRes.data
+      const tasks = tasksRes.data.results || tasksRes.data
+
+      const healthy = trees.filter(t => t.current_health === 'healthy').length
+      const at_risk = trees.filter(t => t.current_health === 'at_risk').length
+      const dead = trees.filter(t => t.current_health === 'dead').length
+      const total = trees.length
+      const overdue = tasks.filter(t => t.due_date && new Date(t.due_date) < new Date()).length
+
+      const zoneData = {
+        name: zone?.name || 'Unknown',
+        city: zone?.city || '',
+        total, healthy, at_risk, dead,
+        survival_rate: total ? Math.round(healthy / total * 100) : 0,
+        pending_tasks: tasks.length,
+        overdue_tasks: overdue,
+        uninspected: at_risk,
+        species_list: [...new Set(trees.map(t => t.species_name).filter(Boolean))].slice(0, 5),
+      }
+
+      const advice = await getMaintenanceAdvice(zoneData)
+      setResult({ zone: zone?.name, advice })
     } catch (e) {
-      setError(e.response?.data?.error || 'Analysis failed.')
+      setError(e.message || 'Analysis failed.')
     } finally {
       setLoading(false)
     }
   }
 
-  const taskTypeEmoji = {
-    water: '💧', prune: '✂️', treat: '💊',
-    fertilize: '🌱', inspect: '🔍', remove: '🪓'
-  }
+  const taskTypeEmoji = { water: '💧', prune: '✂️', treat: '💊', fertilize: '🌱', inspect: '🔍', remove: '🪓' }
 
   return (
     <div className="space-y-6">
-      {/* Zone Selector */}
       <div className="card">
         <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <ClipboardList size={18} className="text-forest-600" /> Select Zone to Analyze
         </h3>
         <div className="flex gap-3">
-          <select
-            className="input flex-1"
-            value={selectedZone}
-            onChange={e => setSelectedZone(e.target.value)}
-            onFocus={loadZones}
-          >
+          <select className="input flex-1" value={selectedZone}
+            onChange={e => setSelectedZone(e.target.value)} onFocus={loadZones}>
             <option value="">Select a zone...</option>
-            {zones.map(z => (
-              <option key={z.id} value={z.id}>{z.name} — {z.city}</option>
-            ))}
+            {zones.map(z => <option key={z.id} value={z.id}>{z.name} — {z.city}</option>)}
           </select>
-          <button
-            onClick={analyze}
-            disabled={!selectedZone || loading}
-            className="btn-primary flex items-center gap-2 disabled:opacity-50 whitespace-nowrap"
-          >
+          <button onClick={analyze} disabled={!selectedZone || loading}
+            className="btn-primary flex items-center gap-2 disabled:opacity-50 whitespace-nowrap">
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             {loading ? 'Analyzing...' : 'Get AI Advice'}
           </button>
         </div>
-        {error && (
-          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
-        )}
+        {error && <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
       </div>
 
-      {/* Results */}
-      {result && (
+      {loading && (
+        <div className="card text-center py-12">
+          <Loader2 size={40} className="animate-spin text-forest-500 mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">LLaMA 3.3 is analyzing zone data...</p>
+        </div>
+      )}
+
+      {result && !loading && (
         <>
-          {/* Summary */}
           <div className="card border-l-4 border-forest-400">
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -279,22 +255,17 @@ function MaintenanceAdvisor() {
               </div>
               <Sparkles size={20} className="text-purple-400" />
             </div>
-            <p className="text-sm text-gray-700 leading-relaxed">{result.advice?.executive_summary || result.advice?.summary}</p>
-
-            {/* Insights */}
+            <p className="text-sm text-gray-700 leading-relaxed">{result.advice?.summary}</p>
             {result.advice?.insights?.length > 0 && (
               <div className="mt-4 space-y-2">
                 {result.advice.insights.map((insight, i) => (
                   <div key={i} className="flex items-start gap-2 text-sm text-gray-600">
-                    <Info size={14} className="text-blue-500 mt-0.5 shrink-0" />
-                    {insight}
+                    <Info size={14} className="text-blue-500 mt-0.5 shrink-0" />{insight}
                   </div>
                 ))}
               </div>
             )}
           </div>
-
-          {/* Recommended Tasks */}
           <div className="card">
             <h3 className="font-semibold text-gray-900 mb-4">Recommended Tasks</h3>
             <div className="space-y-3">
@@ -327,7 +298,7 @@ function MaintenanceAdvisor() {
       {!result && !loading && (
         <div className="card text-center py-12">
           <ClipboardList size={40} className="mx-auto mb-3 text-gray-200" />
-          <p className="text-gray-400 text-sm">Select a zone and click "Get AI Advice" to see recommendations</p>
+          <p className="text-gray-400 text-sm">Select a zone and click "Get AI Advice"</p>
         </div>
       )}
     </div>
@@ -341,14 +312,45 @@ function ReportSummarizer() {
   const [error, setError] = useState(null)
 
   const generate = async () => {
-    setLoading(true)
-    setError(null)
-    setResult(null)
+    setLoading(true); setError(null); setResult(null)
     try {
-      const res = await api.get('/ai/report-summary/')
-      setResult(res.data.report)
+      const [treesRes, tasksRes, zonesRes] = await Promise.all([
+        api.get('/reports/summary/'),
+        api.get('/tasks/'),
+        api.get('/zones/'),
+      ])
+
+      const summary = treesRes.data
+      const tasks = tasksRes.data.results || tasksRes.data
+      const zones = zonesRes.data.results || zonesRes.data
+
+      const today = new Date()
+      const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+      const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+
+      const overdue = tasks.filter(t => t.status === 'pending' && t.due_date && new Date(t.due_date) < today).length
+
+      const statsData = {
+        total: summary.total_trees || 0,
+        healthy: summary.healthy_trees || 0,
+        at_risk: summary.at_risk_trees || 0,
+        dead: summary.dead_trees || 0,
+        survival_rate: summary.survival_rate || 0,
+        planted_this_month: summary.planted_this_month || 0,
+        planted_last_month: summary.planted_last_month || 0,
+        pending_tasks: tasks.filter(t => t.status === 'pending').length,
+        overdue_tasks: overdue,
+        completed_this_month: tasks.filter(t => t.status === 'completed').length,
+        zone_stats: zones.map(z => ({
+          name: z.name,
+          survival_rate: z.survival_rate || 0
+        })).sort((a, b) => a.survival_rate - b.survival_rate),
+      }
+
+      const report = await generateReportSummary(statsData)
+      setResult(report)
     } catch (e) {
-      setError(e.response?.data?.error || 'Failed to generate summary.')
+      setError(e.message || 'Failed to generate summary.')
     } finally {
       setLoading(false)
     }
@@ -362,38 +364,30 @@ function ReportSummarizer() {
             <h3 className="font-semibold text-gray-900 flex items-center gap-2">
               <BarChart3 size={18} className="text-forest-600" /> AI City Report
             </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Generate executive-level insights from your current city tree data
-            </p>
+            <p className="text-sm text-gray-500 mt-1">Executive insights from your live city tree data</p>
           </div>
-          <button
-            onClick={generate}
-            disabled={loading}
-            className="btn-primary flex items-center gap-2 disabled:opacity-50"
-          >
+          <button onClick={generate} disabled={loading}
+            className="btn-primary flex items-center gap-2 disabled:opacity-50">
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
             {loading ? 'Generating...' : 'Generate Report'}
           </button>
         </div>
-        {error && (
-          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
-        )}
+        {error && <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>}
       </div>
 
       {loading && (
         <div className="card text-center py-12">
           <Loader2 size={40} className="animate-spin text-forest-500 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">Gemini is analyzing your city's tree data...</p>
+          <p className="text-gray-500 text-sm">LLaMA 3.3 is analyzing your city's tree data...</p>
         </div>
       )}
 
       {result && !loading && (
         <>
-          {/* Headline */}
           <div className="card bg-gradient-to-r from-forest-900 to-forest-700 text-white">
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-xs text-forest-300 uppercase tracking-widest mb-2">AI Analysis</div>
+                <div className="text-xs text-forest-300 uppercase tracking-widest mb-2">AI Analysis · Powered by LLaMA 3.3</div>
                 <h2 className="text-lg font-bold leading-snug">{result.headline}</h2>
                 <div className="mt-3"><AssessmentBadge level={result.overall_assessment} /></div>
               </div>
@@ -406,7 +400,6 @@ function ReportSummarizer() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Wins */}
             <div className="card">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <CheckCircle size={16} className="text-green-500" /> Key Wins
@@ -414,13 +407,11 @@ function ReportSummarizer() {
               <ul className="space-y-2">
                 {result.key_wins?.map((win, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-500 mt-0.5">✓</span> {win}
+                    <span className="text-green-500 mt-0.5">✓</span>{win}
                   </li>
                 ))}
               </ul>
             </div>
-
-            {/* Concerns */}
             <div className="card">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <AlertTriangle size={16} className="text-amber-500" /> Key Concerns
@@ -428,14 +419,13 @@ function ReportSummarizer() {
               <ul className="space-y-2">
                 {result.key_concerns?.map((concern, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-amber-500 mt-0.5">!</span> {concern}
+                    <span className="text-amber-500 mt-0.5">!</span>{concern}
                   </li>
                 ))}
               </ul>
             </div>
           </div>
 
-          {/* Action Items */}
           <div className="card">
             <h3 className="font-semibold text-gray-900 mb-4">Recommended Actions</h3>
             <div className="space-y-3">
@@ -463,17 +453,15 @@ function ReportSummarizer() {
 
 // ── Main Page ───────────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'diagnosis', label: 'Health Diagnosis', icon: TreePine, desc: 'Analyze tree photos with AI' },
-  { id: 'advisor', label: 'Maintenance Advisor', icon: ClipboardList, desc: 'Get task recommendations' },
-  { id: 'report', label: 'Report Summarizer', icon: BarChart3, desc: 'AI city insights' },
+  { id: 'diagnosis', label: 'Health Diagnosis', icon: TreePine },
+  { id: 'advisor', label: 'Maintenance Advisor', icon: ClipboardList },
+  { id: 'report', label: 'Report Summarizer', icon: BarChart3 },
 ]
 
 export default function AIAssistantPage() {
   const [activeTab, setActiveTab] = useState('diagnosis')
-
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-forest-600 flex items-center justify-center">
@@ -481,25 +469,18 @@ export default function AIAssistantPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">AI Assistant</h1>
-            <p className="text-sm text-gray-500">Powered by Google Gemini</p>
+            <p className="text-sm text-gray-500">Powered by LLaMA 3.3 via Groq</p>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-xl">
         {TABS.map(tab => {
           const Icon = tab.icon
           return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all ${
-                activeTab === tab.id
-                  ? 'bg-white text-forest-700 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-sm font-medium transition-all
+                ${activeTab === tab.id ? 'bg-white text-forest-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
               <Icon size={16} />
               <span className="hidden sm:inline">{tab.label}</span>
             </button>
@@ -507,7 +488,6 @@ export default function AIAssistantPage() {
         })}
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'diagnosis' && <HealthDiagnosis />}
       {activeTab === 'advisor' && <MaintenanceAdvisor />}
       {activeTab === 'report' && <ReportSummarizer />}
