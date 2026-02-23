@@ -19,14 +19,15 @@ from rest_framework.response import Response
 
 
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-GEMINI_TEXT_URL = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={GEMINI_API_KEY}'
-GEMINI_VISION_URL = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={GEMINI_API_KEY}'
+GEMINI_TEXT_URL = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}'
+GEMINI_VISION_URL = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}'
 
 
-def call_gemini(payload):
+def call_gemini(payload, vision=False):
     """Make a call to Gemini API"""
     api_key = os.environ.get('GEMINI_API_KEY', '')
-    url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={api_key}'
+    model = 'gemini-pro-vision' if vision else 'gemini-pro'
+    url = f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}'
 
     data = json.dumps(payload).encode('utf-8')
     req = urllib.request.Request(
@@ -106,7 +107,7 @@ Please respond in this EXACT JSON format (no markdown, no extra text):
         }
 
         try:
-            text = call_gemini(payload)
+            text = call_gemini(payload, vision=True)
             # Clean JSON if wrapped in markdown
             text = text.strip()
             if text.startswith('```'):
