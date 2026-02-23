@@ -2,11 +2,8 @@ name: Daily Email Alerts
 
 on:
   schedule:
-    # 8:00 AM IST = 2:30 AM UTC
-    - cron: '30 2 * * *'
-    # 9:00 AM IST = 3:30 AM UTC  
-    - cron: '30 3 * * *'
-  # Allow manual trigger from GitHub Actions tab
+    - cron: '30 2 * * *'   # 8:00 AM IST - overdue alerts
+    - cron: '30 3 * * *'   # 9:00 AM IST - inspection reminders
   workflow_dispatch:
     inputs:
       job:
@@ -23,15 +20,21 @@ jobs:
   send-overdue-alerts:
     name: Send Overdue Task Alerts
     runs-on: ubuntu-latest
-    # Run on 8am schedule OR manual trigger
     if: |
-      github.event_name == 'workflow_dispatch' && 
-      (github.event.inputs.job == 'overdue_alerts' || github.event.inputs.job == 'both') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'overdue_alerts' || github.event.inputs.job == 'both')) ||
       (github.event_name == 'schedule' && github.event.schedule == '30 2 * * *')
     steps:
-      - name: Trigger overdue alerts
+      - name: Wake up Render (free tier spins down)
+        run: |
+          echo "Waking up Render service..."
+          curl -s "${{ secrets.BACKEND_URL }}/api/schema/" > /dev/null || true
+          echo "Waiting 30s for service to fully wake..."
+          sleep 30
+
+      - name: Send overdue alerts
         run: |
           response=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            --max-time 60 \
             -X POST \
             -H "X-Cron-Token: ${{ secrets.CRON_SECRET_TOKEN }}" \
             "${{ secrets.BACKEND_URL }}/api/cron/overdue-alerts/")
@@ -47,13 +50,20 @@ jobs:
     name: Send Inspection Reminders
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'workflow_dispatch' && 
-      (github.event.inputs.job == 'inspection_reminders' || github.event.inputs.job == 'both') ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'inspection_reminders' || github.event.inputs.job == 'both')) ||
       (github.event_name == 'schedule' && github.event.schedule == '30 3 * * *')
     steps:
-      - name: Trigger inspection reminders
+      - name: Wake up Render (free tier spins down)
+        run: |
+          echo "Waking up Render service..."
+          curl -s "${{ secrets.BACKEND_URL }}/api/schema/" > /dev/null || true
+          echo "Waiting 30s for service to fully wake..."
+          sleep 30
+
+      - name: Send inspection reminders
         run: |
           response=$(curl -s -o /tmp/response.txt -w "%{http_code}" \
+            --max-time 60 \
             -X POST \
             -H "X-Cron-Token: ${{ secrets.CRON_SECRET_TOKEN }}" \
             "${{ secrets.BACKEND_URL }}/api/cron/inspection-reminders/")
