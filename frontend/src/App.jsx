@@ -11,6 +11,7 @@ import TasksPage from './pages/TasksPage'
 import ZonesPage from './pages/ZonesPage'
 import ReportsPage from './pages/ReportsPage'
 import AddTreePage from './pages/AddTreePage'
+import AIAssistantPage from './pages/AIAssistantPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -39,6 +40,7 @@ function AppRoutes() {
         <Route path="tasks" element={<TasksPage />} />
         <Route path="zones" element={<ZonesPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="ai" element={<AIAssistantPage />} />
       </Route>
     </Routes>
   )
