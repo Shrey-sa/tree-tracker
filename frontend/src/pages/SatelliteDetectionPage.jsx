@@ -115,27 +115,33 @@ async function fetchSatelliteTiles(bounds, zoom = 17) {
   }
 }
 
-// ── Call backend proxy for tree detection (avoids CORS) ──────────────────
-async function detectTreesHF(base64Image, imageMime) {
-  // Calls our Django backend which proxies to HF server-side
-  const response = await api.post('/trees/detect-satellite/', {
-    image_base64: base64Image,
-    mime_type: imageMime,
-  })
+// ── Call Hugging Face directly from browser ───────────────────────────────
+async function detectTreesHF(base64Image, hfToken) {
+  const url = 'https://api-inference.huggingface.co/models/facebook/detr-resnet-50'
 
-  // Handle model cold start
-  if (response.status === 503) {
-    throw new Error('Model is warming up — please wait 15 seconds and try again')
+  const binary = atob(base64Image)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const blob = new Blob([bytes], { type: 'image/jpeg' })
+
+  const headers = { 'Content-Type': 'image/jpeg' }
+  if (hfToken) headers['Authorization'] = `Bearer ${hfToken}`
+
+  const resp = await fetch(url, { method: 'POST', headers, body: blob })
+
+  if (resp.status === 503) {
+    // Model cold start — wait and retry once
+    await new Promise(r => setTimeout(r, 10000))
+    const retry = await fetch(url, { method: 'POST', headers, body: blob })
+    if (!retry.ok) throw new Error(`HF API error: ${retry.status} — try again in 30s`)
+    return retry.json()
   }
 
-  const data = response.data
-  if (!Array.isArray(data)) {
-    if (data?.error === 'model_loading') {
-      throw new Error('HF model is warming up — please wait 15 seconds and try again')
-    }
-    throw new Error(data?.error || 'Unexpected response from detection model')
+  if (!resp.ok) {
+    const err = await resp.text()
+    throw new Error(`HF API error ${resp.status}: ${err}`)
   }
-  return data
+  return resp.json()
 }
 
 // Filter detections to likely trees/vegetation
@@ -268,7 +274,7 @@ export default function SatelliteDetectionPage() {
 
       // Step 2: Run detection via backend proxy
       setStatusMsg('🤖 Running AI tree detection (may take 10-20s on first run)...')
-      const raw = await detectTreesHF(imageData.base64, imageData.mime || 'image/jpeg')
+      const raw = await detectTreesHF(imageData.base64, hfToken)
 
       if (!Array.isArray(raw)) {
         throw new Error(raw?.error || 'Unexpected response from detection model')
