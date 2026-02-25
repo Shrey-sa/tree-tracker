@@ -100,7 +100,7 @@ class TreeBulkCreateView(APIView):
     Auto-assigns zone based on closest zone center.
     Auto-generates tag numbers.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         from apps.zones.models import Zone
