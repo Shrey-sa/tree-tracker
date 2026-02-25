@@ -115,35 +115,27 @@ async function fetchSatelliteTiles(bounds, zoom = 17) {
   }
 }
 
-// ── Call Hugging Face for tree detection ──────────────────────────────────
-async function detectTreesHF(base64Image, hfToken) {
-  // Use facebook/detr-resnet-50 — object detection, free, no auth needed for low usage
-  // We'll detect via a proxy approach: use the image and look for vegetation
-  const url = 'https://api-inference.huggingface.co/models/facebook/detr-resnet-50'
+// ── Call backend proxy for tree detection (avoids CORS) ──────────────────
+async function detectTreesHF(base64Image, imageMime) {
+  // Calls our Django backend which proxies to HF server-side
+  const response = await api.post('/trees/detect-satellite/', {
+    image_base64: base64Image,
+    mime_type: imageMime,
+  })
 
-  const binary = atob(base64Image)
-  const bytes = new Uint8Array(binary.length)
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
-  const blob = new Blob([bytes], { type: 'image/jpeg' })
-
-  const headers = { 'Content-Type': 'image/jpeg' }
-  if (hfToken) headers['Authorization'] = `Bearer ${hfToken}`
-
-  const resp = await fetch(url, { method: 'POST', headers, body: blob })
-
-  if (resp.status === 503) {
-    // Model loading — wait and retry once
-    await new Promise(r => setTimeout(r, 8000))
-    const retry = await fetch(url, { method: 'POST', headers, body: blob })
-    if (!retry.ok) throw new Error(`HF API error: ${retry.status}`)
-    return retry.json()
+  // Handle model cold start
+  if (response.status === 503) {
+    throw new Error('Model is warming up — please wait 15 seconds and try again')
   }
 
-  if (!resp.ok) {
-    const err = await resp.text()
-    throw new Error(`HF API error ${resp.status}: ${err}`)
+  const data = response.data
+  if (!Array.isArray(data)) {
+    if (data?.error === 'model_loading') {
+      throw new Error('HF model is warming up — please wait 15 seconds and try again')
+    }
+    throw new Error(data?.error || 'Unexpected response from detection model')
   }
-  return resp.json()
+  return data
 }
 
 // Filter detections to likely trees/vegetation
@@ -245,7 +237,6 @@ export default function SatelliteDetectionPage() {
   const [imageMeta, setImageMeta] = useState(null)
   const [statusMsg, setStatusMsg] = useState('')
   const [importResult, setImportResult] = useState(null)
-  const [hfToken, setHfToken] = useState(import.meta.env.VITE_HF_TOKEN || '')
   const canvasRef = useRef(null)
 
   const handleBoundsSet = useCallback((bounds) => {
@@ -275,9 +266,9 @@ export default function SatelliteDetectionPage() {
       const imageData = await fetchSatelliteTiles(selectedBounds, 17)
       setImageMeta(imageData)
 
-      // Step 2: Run YOLO detection
-      setStatusMsg('🤖 Running AI tree detection (may take 10-20s)...')
-      const raw = await detectTreesHF(imageData.base64, hfToken)
+      // Step 2: Run detection via backend proxy
+      setStatusMsg('🤖 Running AI tree detection (may take 10-20s on first run)...')
+      const raw = await detectTreesHF(imageData.base64, imageData.mime || 'image/jpeg')
 
       if (!Array.isArray(raw)) {
         throw new Error(raw?.error || 'Unexpected response from detection model')
@@ -455,21 +446,6 @@ export default function SatelliteDetectionPage() {
                 <div>
                   <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                     <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">2</span>
-                    HF Token (optional)
-                  </h3>
-                  <input
-                    type="password"
-                    placeholder="hf_... (for higher rate limits)"
-                    value={hfToken}
-                    onChange={e => setHfToken(e.target.value)}
-                    className="input w-full text-xs"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Free at huggingface.co/settings/tokens</p>
-                </div>
-
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-violet-100 text-violet-700 text-xs flex items-center justify-center font-bold">3</span>
                     Run Detection
                   </h3>
                   <button

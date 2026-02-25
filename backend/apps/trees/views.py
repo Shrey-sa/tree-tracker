@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions, filters, status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
@@ -8,7 +9,7 @@ from .serializers import (
     TreeListSerializer, TreeDetailSerializer, TreeCreateSerializer,
     HealthUpdateSerializer, HealthLogSerializer, SpeciesSerializer
 )
-from rest_framework.permissions import IsAuthenticated
+
 
 class TreeFilter(django_filters.FilterSet):
     health = django_filters.CharFilter(field_name='current_health')
@@ -166,3 +167,55 @@ class TreeBulkCreateView(APIView):
             'skipped': skipped,
             'trees': created,
         }, status=201)
+
+
+class SatelliteDetectionProxyView(APIView):
+    """
+    Proxy endpoint for Hugging Face tree detection.
+    Receives base64 image from frontend, forwards to HF API server-side
+    (avoids CORS block on direct browser→HF calls).
+    POST /api/trees/detect-satellite/
+    Body: { image_base64: "...", mime_type: "image/jpeg" }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        import urllib.request
+        import urllib.error
+        import base64
+        import os
+        import json
+
+        image_b64 = request.data.get('image_base64')
+        mime_type = request.data.get('mime_type', 'image/jpeg')
+
+        if not image_b64:
+            return Response({'error': 'image_base64 required'}, status=400)
+
+        try:
+            image_bytes = base64.b64decode(image_b64)
+        except Exception:
+            return Response({'error': 'Invalid base64 image'}, status=400)
+
+        hf_token = os.environ.get('HF_TOKEN', '')
+        url = 'https://api-inference.huggingface.co/models/facebook/detr-resnet-50'
+
+        headers = {'Content-Type': mime_type}
+        if hf_token:
+            headers['Authorization'] = f'Bearer {hf_token}'
+
+        try:
+            req = urllib.request.Request(url, data=image_bytes, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                result = json.loads(resp.read().decode())
+            return Response(result)
+
+        except urllib.error.HTTPError as e:
+            body = e.read().decode()
+            # Model loading (cold start) — tell frontend to retry
+            if e.code == 503:
+                return Response({'error': 'model_loading', 'message': 'Model is warming up, retry in 10s'}, status=503)
+            return Response({'error': f'HF API error {e.code}: {body}'}, status=502)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
