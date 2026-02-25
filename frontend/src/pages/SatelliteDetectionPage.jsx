@@ -243,6 +243,7 @@ export default function SatelliteDetectionPage() {
   const [imageMeta, setImageMeta] = useState(null)
   const [statusMsg, setStatusMsg] = useState('')
   const [importResult, setImportResult] = useState(null)
+  const [hfToken, setHfToken] = useState(import.meta.env.VITE_HF_TOKEN || '')
   const canvasRef = useRef(null)
 
   const handleBoundsSet = useCallback((bounds) => {
