@@ -14,7 +14,7 @@ const navItems = [
   { to: '/tasks', icon: ClipboardList, label: 'Tasks' },
   { to: '/zones', icon: MapPin, label: 'Zones' },
   { to: '/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/activity', icon: label: 'Live Activity' },
+  { to: '/activity', icon: label, 'Live Activity' },
   { to: '/ai', icon: Sparkles, label: 'AI Assistant' },
   { to: '/satellite', icon: ScanSearch, label: 'Satellite Detect' },
 ]
