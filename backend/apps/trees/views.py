@@ -219,3 +219,53 @@ class SatelliteDetectionProxyView(APIView):
 
         except Exception as e:
             return Response({'error': str(e)}, status=500)
+
+
+class SatelliteDetectView(APIView):
+    """
+    Backend proxy for Hugging Face tree detection.
+    Avoids CORS — browser can't call HF directly.
+    POST /api/trees/detect-satellite/
+    Body: { image_base64: "...", mime_type: "image/jpeg" }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        import urllib.request
+        import base64
+        import json
+        import os
+
+        image_base64 = request.data.get('image_base64')
+        mime_type = request.data.get('mime_type', 'image/jpeg')
+
+        if not image_base64:
+            return Response({'error': 'image_base64 required'}, status=400)
+
+        try:
+            image_bytes = base64.b64decode(image_base64)
+        except Exception:
+            return Response({'error': 'Invalid base64 image'}, status=400)
+
+        hf_token = os.environ.get('HF_TOKEN', '')
+        headers = {'Content-Type': mime_type}
+        if hf_token:
+            headers['Authorization'] = f'Bearer {hf_token}'
+
+        url = 'https://api-inference.huggingface.co/models/facebook/detr-resnet-50'
+
+        try:
+            req = urllib.request.Request(url, data=image_bytes, headers=headers, method='POST')
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                result = json.loads(resp.read().decode())
+                return Response(result)
+
+        except urllib.error.HTTPError as e:
+            body = e.read().decode()
+            # Model loading — tell frontend to retry
+            if e.code == 503:
+                return Response({'error': 'model_loading', 'message': 'Model warming up, retry in 15s'}, status=503)
+            return Response({'error': f'HF API error {e.code}: {body}'}, status=502)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
