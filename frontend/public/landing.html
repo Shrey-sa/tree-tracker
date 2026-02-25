@@ -1,0 +1,1170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GroveOS — Urban Forest Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --ink: #0d1a0f;
+    --forest: #1a3320;
+    --moss: #2d5a3d;
+    --fern: #4a8c5c;
+    --sage: #7ab893;
+    --mist: #b8d4bf;
+    --cream: #f0ebe0;
+    --gold: #c8a84b;
+    --gold-light: #e8c96b;
+    --bark: #6b4423;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--ink);
+    color: var(--cream);
+    font-family: 'DM Sans', sans-serif;
+    overflow-x: hidden;
+    cursor: none;
+  }
+
+  /* ── Custom Cursor ── */
+  .cursor {
+    position: fixed;
+    width: 8px; height: 8px;
+    background: var(--gold);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s ease;
+  }
+  .cursor-ring {
+    position: fixed;
+    width: 36px; height: 36px;
+    border: 1px solid rgba(200,168,75,0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: all 0.18s ease;
+  }
+  a:hover ~ .cursor-ring, button:hover ~ .cursor-ring { transform: translate(-50%,-50%) scale(1.6); }
+
+  /* ── Canvas Background ── */
+  #bg-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    opacity: 0.6;
+  }
+
+  /* ── Noise Overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 28px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(to bottom, rgba(13,26,15,0.9) 0%, transparent 100%);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .logo-icon {
+    width: 32px; height: 32px;
+    position: relative;
+  }
+  .logo-icon svg { width: 100%; height: 100%; }
+  .logo-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--cream);
+  }
+  .logo-text span { color: var(--gold); }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+  }
+  .nav-link {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--mist);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .nav-link:hover { color: var(--cream); }
+
+  .nav-btn {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: var(--gold);
+    border: none;
+    padding: 10px 24px;
+    cursor: none;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .nav-btn:hover { background: var(--gold-light); transform: translateY(-1px); }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 0 48px;
+  }
+
+  .hero-content {
+    max-width: 760px;
+    padding-top: 80px;
+  }
+
+  .hero-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.2s forwards;
+  }
+  .hero-eyebrow::before {
+    content: '';
+    display: block;
+    width: 40px; height: 1px;
+    background: var(--gold);
+  }
+
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(52px, 7vw, 96px);
+    font-weight: 900;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: fadeUp 0.9s 0.4s forwards;
+  }
+  .hero-title em {
+    font-style: italic;
+    color: var(--sage);
+  }
+  .hero-title .accent {
+    color: var(--gold);
+    position: relative;
+  }
+  .hero-title .accent::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    left: 0; right: 0;
+    height: 3px;
+    background: var(--gold);
+    opacity: 0.4;
+  }
+
+  .hero-sub {
+    font-size: 17px;
+    font-weight: 300;
+    color: var(--mist);
+    line-height: 1.7;
+    max-width: 500px;
+    margin-bottom: 52px;
+    opacity: 0;
+    animation: fadeUp 0.9s 0.6s forwards;
+  }
+
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    opacity: 0;
+    animation: fadeUp 0.9s 0.8s forwards;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: var(--ink);
+    border: none;
+    padding: 16px 40px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: none;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s;
+  }
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gold-light);
+    transform: translateX(-101%);
+    transition: transform 0.3s ease;
+  }
+  .btn-primary:hover::before { transform: translateX(0); }
+  .btn-primary:hover { transform: translateY(-2px); }
+  .btn-primary span { position: relative; z-index: 1; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--mist);
+    border: 1px solid rgba(184,212,191,0.3);
+    padding: 16px 40px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: none;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-ghost:hover {
+    border-color: var(--sage);
+    color: var(--cream);
+    transform: translateY(-2px);
+  }
+
+  /* ── STATS STRIP ── */
+  .stats-strip {
+    position: absolute;
+    bottom: 48px;
+    left: 48px;
+    right: 48px;
+    display: flex;
+    gap: 48px;
+    z-index: 2;
+    opacity: 0;
+    animation: fadeUp 0.9s 1.1s forwards;
+  }
+  .stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border-left: 1px solid rgba(122,184,147,0.3);
+    padding-left: 20px;
+  }
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--cream);
+    line-height: 1;
+  }
+  .stat-num span { color: var(--gold); font-size: 18px; }
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--sage);
+  }
+
+  /* ── TREE SILHOUETTE ── */
+  .tree-silhouette {
+    position: absolute;
+    right: -20px;
+    bottom: 0;
+    width: 55vw;
+    max-width: 700px;
+    opacity: 0;
+    animation: fadeIn 1.5s 0.5s forwards;
+    z-index: 1;
+    pointer-events: none;
+  }
+
+  /* ── SCROLL INDICATOR ── */
+  .scroll-hint {
+    position: absolute;
+    right: 48px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    animation: fadeIn 1s 1.5s forwards;
+    z-index: 3;
+  }
+  .scroll-hint-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--sage);
+    writing-mode: vertical-rl;
+  }
+  .scroll-hint-line {
+    width: 1px;
+    height: 60px;
+    background: linear-gradient(to bottom, var(--sage), transparent);
+    animation: scrollLine 1.8s ease-in-out infinite;
+  }
+  @keyframes scrollLine {
+    0% { transform: scaleY(0); transform-origin: top; }
+    50% { transform: scaleY(1); transform-origin: top; }
+    51% { transform: scaleY(1); transform-origin: bottom; }
+    100% { transform: scaleY(0); transform-origin: bottom; }
+  }
+
+  /* ── FEATURES ── */
+  .features {
+    position: relative;
+    z-index: 2;
+    padding: 120px 48px;
+    background: linear-gradient(to bottom, transparent, rgba(26,51,32,0.4), transparent);
+  }
+
+  .features-header {
+    margin-bottom: 80px;
+  }
+  .section-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    max-width: 80px;
+    height: 1px;
+    background: var(--gold);
+    opacity: 0.4;
+  }
+  .section-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(32px, 4vw, 52px);
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .section-title em { font-style: italic; color: var(--sage); }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+  }
+
+  .feature-card {
+    background: rgba(26,51,32,0.3);
+    border: 1px solid rgba(74,140,92,0.15);
+    padding: 40px 36px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s, border-color 0.3s, transform 0.3s;
+    cursor: default;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to right, var(--fern), var(--gold));
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+  .feature-card:hover {
+    background: rgba(45,90,61,0.35);
+    border-color: rgba(74,140,92,0.4);
+    transform: translateY(-4px);
+  }
+  .feature-card:hover::before { transform: scaleX(1); }
+
+  .feature-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 64px;
+    font-weight: 900;
+    color: rgba(74,140,92,0.12);
+    line-height: 1;
+    position: absolute;
+    top: 20px; right: 24px;
+  }
+  .feature-icon {
+    width: 44px; height: 44px;
+    margin-bottom: 24px;
+    color: var(--fern);
+  }
+  .feature-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--cream);
+  }
+  .feature-desc {
+    font-size: 14px;
+    font-weight: 300;
+    color: var(--mist);
+    line-height: 1.7;
+  }
+
+  /* ── CTA SECTION ── */
+  .cta-section {
+    position: relative;
+    z-index: 2;
+    padding: 120px 48px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, rgba(45,90,61,0.4) 0%, transparent 70%);
+  }
+  .cta-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 900;
+    line-height: 1.05;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .cta-title em { font-style: italic; color: var(--gold); }
+  .cta-sub {
+    font-size: 16px;
+    font-weight: 300;
+    color: var(--mist);
+    margin-bottom: 48px;
+    position: relative;
+  }
+
+  /* ── LOGIN MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(13,26,15,0.85);
+    backdrop-filter: blur(12px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+  .modal-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--forest);
+    border: 1px solid rgba(74,140,92,0.3);
+    width: 100%;
+    max-width: 480px;
+    padding: 56px 52px;
+    position: relative;
+    transform: translateY(24px) scale(0.97);
+    transition: transform 0.35s ease;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(200,168,75,0.1);
+  }
+  .modal-overlay.open .modal {
+    transform: translateY(0) scale(1);
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 20px; right: 20px;
+    background: none;
+    border: none;
+    color: var(--sage);
+    cursor: none;
+    font-size: 20px;
+    width: 36px; height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s, transform 0.2s;
+    font-family: 'DM Mono', monospace;
+  }
+  .modal-close:hover { color: var(--cream); transform: rotate(90deg); }
+
+  .modal-eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .modal-eyebrow::before {
+    content: '';
+    width: 24px; height: 1px;
+    background: var(--gold);
+  }
+
+  .modal-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    line-height: 1.1;
+  }
+  .modal-title em { font-style: italic; color: var(--sage); }
+
+  .modal-sub {
+    font-size: 13px;
+    color: var(--mist);
+    margin-bottom: 40px;
+    font-weight: 300;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .form-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--sage);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .form-input {
+    width: 100%;
+    background: rgba(13,26,15,0.6);
+    border: 1px solid rgba(74,140,92,0.25);
+    color: var(--cream);
+    padding: 14px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+    cursor: text;
+  }
+  .form-input::placeholder { color: rgba(184,212,191,0.3); }
+  .form-input:focus {
+    border-color: var(--fern);
+    background: rgba(13,26,15,0.8);
+  }
+
+  .form-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+  .form-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: none;
+  }
+  .form-check input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: var(--fern);
+    cursor: none;
+  }
+  .form-check label {
+    font-size: 12px;
+    color: var(--mist);
+    cursor: none;
+  }
+  .form-forgot {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--sage);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .form-forgot:hover { color: var(--gold); }
+
+  .btn-login {
+    width: 100%;
+    background: var(--gold);
+    color: var(--ink);
+    border: none;
+    padding: 16px;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: none;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s;
+    margin-bottom: 20px;
+  }
+  .btn-login::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--gold-light);
+    transform: translateX(-101%);
+    transition: transform 0.3s ease;
+  }
+  .btn-login:hover::before { transform: translateX(0); }
+  .btn-login:hover { transform: translateY(-1px); }
+  .btn-login span { position: relative; z-index: 1; }
+
+  .modal-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .modal-divider::before, .modal-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(74,140,92,0.2);
+  }
+  .modal-divider span {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    color: var(--sage);
+    text-transform: uppercase;
+  }
+
+  .demo-creds {
+    background: rgba(13,26,15,0.5);
+    border: 1px solid rgba(74,140,92,0.2);
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .demo-cred {
+    text-align: center;
+    cursor: none;
+    padding: 10px 8px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .demo-cred:hover {
+    border-color: rgba(74,140,92,0.3);
+    background: rgba(45,90,61,0.3);
+  }
+  .demo-cred-role {
+    font-family: 'DM Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 4px;
+  }
+  .demo-cred-user {
+    font-size: 11px;
+    color: var(--cream);
+    font-weight: 500;
+  }
+  .demo-cred-pass {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--sage);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative;
+    z-index: 2;
+    padding: 32px 48px;
+    border-top: 1px solid rgba(74,140,92,0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-copy {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--moss);
+  }
+  .footer-links {
+    display: flex;
+    gap: 24px;
+  }
+  .footer-links a {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--moss);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--sage); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 768px) {
+    nav { padding: 20px 24px; }
+    .nav-link { display: none; }
+    .hero { padding: 0 24px; }
+    .hero-content { padding-top: 100px; }
+    .stats-strip { display: none; }
+    .tree-silhouette { opacity: 0.15; width: 100vw; }
+    .features { padding: 80px 24px; }
+    .features-grid { grid-template-columns: 1fr; }
+    .cta-section { padding: 80px 24px; }
+    footer { padding: 24px; flex-direction: column; gap: 12px; }
+    .modal { padding: 40px 28px; margin: 16px; }
+    .scroll-hint { display: none; }
+    .hero-actions { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursor-ring"></div>
+
+<!-- Animated background canvas -->
+<canvas id="bg-canvas"></canvas>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 32 32" fill="none">
+        <path d="M16 2L10 10H13L8 18H12L6 28H26L20 18H24L19 10H22L16 2Z" fill="#4a8c5c" opacity="0.7"/>
+        <path d="M16 2L10 10H13L8 18H12L6 28H26L20 18H24L19 10H22L16 2Z" stroke="#7ab893" stroke-width="0.5"/>
+        <line x1="16" y1="28" x2="16" y2="32" stroke="#6b4423" stroke-width="2"/>
+      </svg>
+    </div>
+    <span class="logo-text">Grove<span>OS</span></span>
+  </a>
+  <div class="nav-right">
+    <a href="#features" class="nav-link">Features</a>
+    <a href="#" class="nav-link">About</a>
+    <a href="https://treetracker-backend.onrender.com/api/docs/" target="_blank" class="nav-link">API</a>
+    <button class="nav-btn" onclick="openModal()">Sign In</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <!-- Tree silhouette SVG -->
+  <svg class="tree-silhouette" viewBox="0 0 600 700" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M300 680 L300 380" stroke="#3d2614" stroke-width="28" stroke-linecap="round"/>
+    <path d="M300 500 L240 430 M300 500 L360 420" stroke="#3d2614" stroke-width="12" stroke-linecap="round"/>
+    <path d="M300 420 L220 340 M300 420 L390 330" stroke="#3d2614" stroke-width="10" stroke-linecap="round"/>
+    <!-- Crown layers -->
+    <ellipse cx="300" cy="320" rx="180" ry="140" fill="rgba(26,51,32,0.7)"/>
+    <ellipse cx="240" cy="260" rx="130" ry="100" fill="rgba(45,90,61,0.6)"/>
+    <ellipse cx="360" cy="270" rx="120" ry="95" fill="rgba(36,72,48,0.6)"/>
+    <ellipse cx="300" cy="200" rx="150" ry="120" fill="rgba(45,90,61,0.65)"/>
+    <ellipse cx="300" cy="140" rx="120" ry="100" fill="rgba(55,110,74,0.6)"/>
+    <ellipse cx="300" cy="80" rx="80" ry="70" fill="rgba(65,130,87,0.5)"/>
+    <!-- Leaves highlights -->
+    <ellipse cx="300" cy="200" rx="150" ry="120" fill="none" stroke="rgba(122,184,147,0.15)" stroke-width="1"/>
+    <ellipse cx="300" cy="80" rx="80" ry="70" fill="none" stroke="rgba(122,184,147,0.2)" stroke-width="1"/>
+    <!-- Particles/fireflies -->
+    <circle cx="180" cy="180" r="2" fill="#c8a84b" opacity="0.6"><animate attributeName="opacity" values="0.6;0.1;0.6" dur="3s" repeatCount="indefinite"/></circle>
+    <circle cx="420" cy="140" r="1.5" fill="#c8a84b" opacity="0.4"><animate attributeName="opacity" values="0.4;0.9;0.4" dur="2.3s" repeatCount="indefinite"/></circle>
+    <circle cx="350" cy="240" r="2" fill="#7ab893" opacity="0.5"><animate attributeName="opacity" values="0.5;0.1;0.5" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="230" cy="300" r="1.5" fill="#c8a84b" opacity="0.7"><animate attributeName="opacity" values="0.7;0.2;0.7" dur="2.8s" repeatCount="indefinite"/></circle>
+    <circle cx="390" cy="310" r="2" fill="#7ab893" opacity="0.4"><animate attributeName="opacity" values="0.4;0.8;0.4" dur="3.5s" repeatCount="indefinite"/></circle>
+  </svg>
+
+  <div class="hero-content">
+    <div class="hero-eyebrow">Urban Forest Intelligence Platform</div>
+    <h1 class="hero-title">
+      Every tree<br>
+      <em>tells a</em><br>
+      <span class="accent">story.</span>
+    </h1>
+    <p class="hero-sub">
+      A living intelligence layer for cities to monitor, manage, and grow their urban forest — from first planting to full canopy.
+    </p>
+    <div class="hero-actions">
+      <button class="btn-primary" onclick="openModal()"><span>Enter Platform →</span></button>
+      <a href="https://treetracker-backend.onrender.com/api/docs/" target="_blank" class="btn-ghost">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+        View API Docs
+      </a>
+    </div>
+  </div>
+
+  <!-- Scroll indicator -->
+  <div class="scroll-hint">
+    <span class="scroll-hint-text">Scroll</span>
+    <div class="scroll-hint-line"></div>
+  </div>
+
+  <!-- Stats strip -->
+  <div class="stats-strip">
+    <div class="stat">
+      <div class="stat-num">240<span>+</span></div>
+      <div class="stat-label">Trees Tracked</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">5</div>
+      <div class="stat-label">City Zones</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">3</div>
+      <div class="stat-label">AI Agents</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">$0</div>
+      <div class="stat-label">Infra Cost</div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="features-header">
+    <div class="section-label">Platform Capabilities</div>
+    <h2 class="section-title">Built for the<br><em>people who plant.</em></h2>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-num">01</div>
+      <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="10" r="3"/><path d="M12 21.7C17.3 17 20 13 20 10a8 8 0 1 0-16 0c0 3 2.7 6.9 8 11.7z"/>
+      </svg>
+      <div class="feature-title">Live Map Intelligence</div>
+      <div class="feature-desc">Geo-tagged trees visualised in real-time with color-coded health overlays. Click any marker for full history, health timeline, and open tasks.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-num">02</div>
+      <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>
+      </svg>
+      <div class="feature-title">Role-Based Workflows</div>
+      <div class="feature-desc">Admins, supervisors, and field workers each see exactly what they need. Task assignment, completion tracking, and accountability baked in.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-num">03</div>
+      <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2a10 10 0 0 1 10 10c0 5.52-4.48 10-10 10S2 17.52 2 12"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      <div class="feature-title">Health Tracking</div>
+      <div class="feature-desc">Every status change is logged with who changed it, when, and why. Full audit trail from planting to present — nothing gets lost.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-num">04</div>
+      <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+        <polyline points="7.5 4.21 12 6.81 16.5 4.21"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+      </svg>
+      <div class="feature-title">AI-Powered Agents</div>
+      <div class="feature-desc">Upload a photo for instant health diagnosis. Get autonomous maintenance recommendations from LLaMA 3.3. Generate executive reports in one click.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-num">05</div>
+      <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+      </svg>
+      <div class="feature-title">Reports & Export</div>
+      <div class="feature-desc">Survival rate trends, zone comparisons, planting charts. Export to PDF or CSV for stakeholder presentations or archival records.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-num">06</div>
+      <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <div class="feature-title">Zero-Cost Deployment</div>
+      <div class="feature-desc">Vercel + Render + Cloudinary + Groq — the entire production stack runs free. No credit card. No monthly bill. Full enterprise features.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2 class="cta-title">Ready to see your<br><em>forest come alive?</em></h2>
+  <p class="cta-sub">Sign in with a demo account and explore the full platform.</p>
+  <button class="btn-primary" onclick="openModal()"><span>Open the Platform →</span></button>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <span class="footer-copy">© 2025 GroveOS · Urban Forest Intelligence</span>
+  <div class="footer-links">
+    <a href="https://treetracker-backend.onrender.com/api/docs/" target="_blank">API Docs</a>
+    <a href="https://github.com/Shrey-sa/tree-tracker" target="_blank">GitHub</a>
+    <a href="#" onclick="openModal(); return false;">Sign In</a>
+  </div>
+</footer>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" id="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-eyebrow">Secure Access</div>
+    <h2 class="modal-title">Welcome<br><em>back.</em></h2>
+    <p class="modal-sub">Sign in to access your urban forest dashboard.</p>
+
+    <form onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" placeholder="Enter your username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="form-row">
+        <label class="form-check">
+          <input type="checkbox" id="remember">
+          <label for="remember" style="font-size:12px;color:var(--mist);">Remember me</label>
+        </label>
+        <a href="#" class="form-forgot">Forgot password?</a>
+      </div>
+      <button class="btn-login" type="submit" id="login-btn">
+        <span id="login-btn-text">Enter Platform →</span>
+      </button>
+    </form>
+
+    <div id="login-error" style="display:none;font-size:12px;color:#e07070;font-family:'DM Mono',monospace;letter-spacing:0.05em;margin-bottom:16px;padding:10px 12px;background:rgba(200,80,80,0.1);border:1px solid rgba(200,80,80,0.2);">
+      Invalid credentials. Try a demo account below.
+    </div>
+
+    <div class="modal-divider"><span>or try a demo</span></div>
+
+    <div class="demo-creds">
+      <div class="demo-cred" onclick="fillDemo('admin','admin123')">
+        <div class="demo-cred-role">Admin</div>
+        <div class="demo-cred-user">admin</div>
+        <div class="demo-cred-pass">admin123</div>
+      </div>
+      <div class="demo-cred" onclick="fillDemo('supervisor1','pass1234')">
+        <div class="demo-cred-role">Supervisor</div>
+        <div class="demo-cred-user">supervisor1</div>
+        <div class="demo-cred-pass">pass1234</div>
+      </div>
+      <div class="demo-cred" onclick="fillDemo('worker1','pass1234')">
+        <div class="demo-cred-role">Field Worker</div>
+        <div class="demo-cred-user">worker1</div>
+        <div class="demo-cred-pass">pass1234</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Cursor ──
+  const cursor = document.getElementById('cursor');
+  const ring = document.getElementById('cursor-ring');
+  let mx = 0, my = 0, rx = 0, ry = 0;
+  document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+  const animCursor = () => {
+    cursor.style.left = mx + 'px'; cursor.style.top = my + 'px';
+    rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+    ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+    requestAnimationFrame(animCursor);
+  };
+  animCursor();
+  document.querySelectorAll('a, button, .demo-cred, .feature-card').forEach(el => {
+    el.addEventListener('mouseenter', () => ring.style.transform = 'translate(-50%,-50%) scale(2)');
+    el.addEventListener('mouseleave', () => ring.style.transform = 'translate(-50%,-50%) scale(1)');
+  });
+
+  // ── Canvas Particle Forest ──
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [];
+
+  const resize = () => {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  };
+  resize();
+  window.addEventListener('resize', resize);
+
+  class Particle {
+    constructor() { this.reset(); }
+    reset() {
+      this.x = Math.random() * W;
+      this.y = Math.random() * H;
+      this.size = Math.random() * 2 + 0.5;
+      this.speedY = -(Math.random() * 0.4 + 0.1);
+      this.speedX = (Math.random() - 0.5) * 0.2;
+      this.opacity = Math.random() * 0.6 + 0.1;
+      this.color = Math.random() > 0.6 ? '#c8a84b' : '#4a8c5c';
+      this.life = 0;
+      this.maxLife = Math.random() * 300 + 200;
+    }
+    update() {
+      this.x += this.speedX;
+      this.y += this.speedY;
+      this.life++;
+      const fade = this.life < 30 ? this.life / 30 : this.life > this.maxLife - 30 ? (this.maxLife - this.life) / 30 : 1;
+      this.currentOpacity = this.opacity * fade;
+      if (this.life >= this.maxLife || this.y < -10) this.reset();
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.globalAlpha = this.currentOpacity;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // Horizontal scan lines for atmosphere
+  for (let i = 0; i < 80; i++) particles.push(new Particle());
+
+  const animCanvas = () => {
+    ctx.clearRect(0, 0, W, H);
+
+    // Subtle radial glow at bottom
+    const grad = ctx.createRadialGradient(W * 0.7, H, 0, W * 0.7, H, H * 0.6);
+    grad.addColorStop(0, 'rgba(45,90,61,0.08)');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    particles.forEach(p => { p.update(); p.draw(); });
+    requestAnimationFrame(animCanvas);
+  };
+  animCanvas();
+
+  // ── Modal ──
+  const overlay = document.getElementById('modal-overlay');
+
+  const openModal = () => {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('username').focus(), 350);
+  };
+  const closeModal = () => {
+    overlay.classList.remove('open');
+    document.body.style.overflow = '';
+    document.getElementById('login-error').style.display = 'none';
+    document.getElementById('login-btn-text').textContent = 'Enter Platform →';
+  };
+  const handleOverlayClick = (e) => { if (e.target === overlay) closeModal(); };
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  const fillDemo = (user, pass) => {
+    document.getElementById('username').value = user;
+    document.getElementById('password').value = pass;
+    document.getElementById('login-error').style.display = 'none';
+  };
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const btnText = document.getElementById('login-btn-text');
+    const errEl = document.getElementById('login-error');
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!username || !password) return;
+
+    btnText.textContent = 'Authenticating...';
+    btn.disabled = true;
+    errEl.style.display = 'none';
+
+    try {
+      const res = await fetch('https://treetracker-backend.onrender.com/api/auth/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+
+      if (res.ok && data.access) {
+        localStorage.setItem('access_token', data.access);
+        localStorage.setItem('refresh_token', data.refresh);
+        btnText.textContent = '✓ Redirecting...';
+        setTimeout(() => { window.location.href = 'https://tree-tracker-wheat.vercel.app'; }, 800);
+      } else {
+        errEl.style.display = 'block';
+        btnText.textContent = 'Enter Platform →';
+        btn.disabled = false;
+      }
+    } catch {
+      errEl.textContent = 'Connection error. Please try again.';
+      errEl.style.display = 'block';
+      btnText.textContent = 'Enter Platform →';
+      btn.disabled = false;
+    }
+  };
+
+  // ── Intersection Observer for feature cards ──
+  const cards = document.querySelectorAll('.feature-card');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '0';
+        entry.target.style.transform = 'translateY(20px)';
+        entry.target.style.transition = `opacity 0.5s ${i * 0.07}s ease, transform 0.5s ${i * 0.07}s ease, background 0.3s, border-color 0.3s`;
+        setTimeout(() => {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }, 50);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+  cards.forEach(c => { c.style.opacity = '0'; observer.observe(c); });
+</script>
+</body>
+</html>
