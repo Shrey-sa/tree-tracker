@@ -13,7 +13,6 @@ import ReportsPage from './pages/ReportsPage'
 import AddTreePage from './pages/AddTreePage'
 import AIAssistantPage from './pages/AIAssistantPage'
 import SatelliteDetectionPage from './pages/SatelliteDetectionPage'
-import ActivityPage from './pages/ActivityPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
