@@ -1,13 +1,11 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { useNotifications } from '../context/NotificationContext'
 import {
   LayoutDashboard, Map, TreePine, ClipboardList,
   MapPin, BarChart3, LogOut, Menu, X, Bell,
   Sparkles, Activity, Wifi, WifiOff
 } from 'lucide-react'
 import { useState } from 'react'
-import NotificationBell from './NotificationBell'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
