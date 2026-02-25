@@ -92,16 +92,6 @@ class MapDataView(APIView):
         return Response(list(data))
 
 
-class TreeCeleryTaskView(APIView):
-    """Celery tasks placeholder"""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request):
-        from .tasks import send_health_check_reminders
-        send_health_check_reminders.delay()
-        return Response({'message': 'Health check reminder task queued.'})
-
-
 class TreeBulkCreateView(APIView):
     """
     Bulk create trees from satellite detection results.
