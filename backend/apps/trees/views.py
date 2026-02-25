@@ -100,3 +100,79 @@ class TreeCeleryTaskView(APIView):
         from .tasks import send_health_check_reminders
         send_health_check_reminders.delay()
         return Response({'message': 'Health check reminder task queued.'})
+
+
+class TreeBulkCreateView(APIView):
+    """
+    Bulk create trees from satellite detection results.
+    POST /api/trees/bulk-create/
+    Body: { trees: [{latitude, longitude, confidence}, ...], source: "satellite_detection" }
+    Auto-assigns zone based on closest zone center.
+    Auto-generates tag numbers.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from apps.zones.models import Zone
+        import math
+
+        trees_data = request.data.get('trees', [])
+        source_note = request.data.get('source', 'satellite_detection')
+
+        if not trees_data:
+            return Response({'error': 'No trees provided'}, status=400)
+
+        if len(trees_data) > 200:
+            return Response({'error': 'Max 200 trees per batch'}, status=400)
+
+        zones = list(Zone.objects.all())
+        if not zones:
+            return Response({'error': 'No zones configured'}, status=400)
+
+        def closest_zone(lat, lng):
+            """Find nearest zone by Euclidean distance to center"""
+            return min(zones, key=lambda z: math.sqrt(
+                (z.center_lat - lat) ** 2 + (z.center_lng - lng) ** 2
+            ))
+
+        created = []
+        skipped = 0
+
+        for t in trees_data:
+            lat = t.get('latitude')
+            lng = t.get('longitude')
+            confidence = t.get('confidence', 0)
+
+            if lat is None or lng is None:
+                skipped += 1
+                continue
+
+            # Skip very low confidence detections
+            if confidence < 0.3:
+                skipped += 1
+                continue
+
+            zone = closest_zone(lat, lng)
+
+            tree = Tree.objects.create(
+                latitude=round(lat, 6),
+                longitude=round(lng, 6),
+                zone=zone,
+                planted_by=request.user,
+                current_health='at_risk',  # Will be properly assessed after field inspection
+                notes=f"Auto-detected via satellite imagery. Confidence: {round(confidence * 100)}%. Source: {source_note}",
+            )
+            created.append({
+                'id': tree.id,
+                'tag_number': tree.tag_number,
+                'latitude': tree.latitude,
+                'longitude': tree.longitude,
+                'zone': zone.name,
+            })
+
+        return Response({
+            'success': True,
+            'created': len(created),
+            'skipped': skipped,
+            'trees': created,
+        }, status=201)

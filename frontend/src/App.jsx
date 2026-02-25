@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
+import { NotificationProvider } from './context/NotificationContext'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -12,6 +13,8 @@ import ZonesPage from './pages/ZonesPage'
 import ReportsPage from './pages/ReportsPage'
 import AddTreePage from './pages/AddTreePage'
 import AIAssistantPage from './pages/AIAssistantPage'
+import SatelliteDetectionPage from './pages/SatelliteDetectionPage'
+import ActivityPage from './pages/ActivityPage'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -31,7 +34,13 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      <Route path="/" element={
+        <ProtectedRoute>
+          <NotificationProvider>
+            <Layout />
+          </NotificationProvider>
+        </ProtectedRoute>
+      }>
         <Route index element={<DashboardPage />} />
         <Route path="map" element={<MapPage />} />
         <Route path="trees" element={<TreesPage />} />
@@ -40,7 +49,9 @@ function AppRoutes() {
         <Route path="tasks" element={<TasksPage />} />
         <Route path="zones" element={<ZonesPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="activity" element={<ActivityPage />} />
         <Route path="ai" element={<AIAssistantPage />} />
+        <Route path="satellite" element={<SatelliteDetectionPage />} />
       </Route>
     </Routes>
   )
