@@ -49,7 +49,7 @@ export default function Layout() {
             end={exact}
             onClick={() => setSidebarOpen(false)}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all
               ${isActive
                 ? 'bg-forest-600 text-white'
                 : 'text-forest-300 hover:bg-forest-700 hover:text-white'}`
@@ -57,16 +57,6 @@ export default function Layout() {
           >
             <Icon size={18} />
             {label}
-            {/* Notification badge on Activity */}
-            {label === 'Live Activity' && unreadCount > 0 && (
-              <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold min-w-[20px] text-center">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-            {/* Live indicator */}
-            {label === 'Live Activity' && (
-              <span className={`ml-auto w-2 h-2 rounded-full ${connected ? 'bg-green-400 animate-pulse' : 'bg-gray-500'}`} />
-            )}
           </NavLink>
         ))}
       </nav>
@@ -81,10 +71,6 @@ export default function Layout() {
             <div className="text-white text-xs font-medium truncate">{user?.username}</div>
             <div className="text-forest-400 text-xs capitalize">{user?.role}</div>
           </div>
-          {connected
-            ? <Wifi size={12} className="text-green-400 shrink-0" />
-            : <WifiOff size={12} className="text-gray-500 shrink-0" />
-          }
         </div>
         <button onClick={handleLogout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-forest-300 hover:bg-forest-700 hover:text-white text-sm transition-all">

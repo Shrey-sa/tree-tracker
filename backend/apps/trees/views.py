@@ -8,7 +8,7 @@ from .serializers import (
     TreeListSerializer, TreeDetailSerializer, TreeCreateSerializer,
     HealthUpdateSerializer, HealthLogSerializer, SpeciesSerializer
 )
-
+from rest_framework.permissions import IsAuthenticated
 
 class TreeFilter(django_filters.FilterSet):
     health = django_filters.CharFilter(field_name='current_health')
@@ -100,7 +100,7 @@ class TreeBulkCreateView(APIView):
     Auto-assigns zone based on closest zone center.
     Auto-generates tag numbers.
     """
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         from apps.zones.models import Zone
