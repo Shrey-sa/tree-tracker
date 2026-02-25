@@ -34,10 +34,8 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
       <Route path="/" element={
         <ProtectedRoute>
-          <NotificationProvider>
-            <Layout />
-          </NotificationProvider>
-        </ProtectedRoute>
+                  <Layout />
+              </ProtectedRoute>
       }>
         <Route index element={<DashboardPage />} />
         <Route path="map" element={<MapPage />} />
@@ -47,7 +45,6 @@ function AppRoutes() {
         <Route path="tasks" element={<TasksPage />} />
         <Route path="zones" element={<ZonesPage />} />
         <Route path="reports" element={<ReportsPage />} />
-        <Route path="activity" element={<ActivityPage />} />
         <Route path="ai" element={<AIAssistantPage />} />
         <Route path="satellite" element={<SatelliteDetectionPage />} />
       </Route>

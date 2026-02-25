@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import {
   LayoutDashboard, Map, TreePine, ClipboardList,
   MapPin, BarChart3, LogOut, Menu, X, Bell,
-  Sparkles, Activity, Wifi, WifiOff
+  Sparkles, Wifi, WifiOff
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -14,14 +14,13 @@ const navItems = [
   { to: '/tasks', icon: ClipboardList, label: 'Tasks' },
   { to: '/zones', icon: MapPin, label: 'Zones' },
   { to: '/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/activity', icon: Activity, label: 'Live Activity' },
+  { to: '/activity', icon: label: 'Live Activity' },
   { to: '/ai', icon: Sparkles, label: 'AI Assistant' },
   { to: '/satellite', icon: ScanSearch, label: 'Satellite Detect' },
 ]
 
 export default function Layout() {
   const { user, logout } = useAuth()
-  const { unreadCount, connected } = useNotifications()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -121,8 +120,7 @@ export default function Layout() {
             <Menu size={22} className="text-gray-600" />
           </button>
           <span className="font-semibold text-forest-800">Tree Tracker</span>
-          <NotificationBell />
-        </div>
+                  </div>
 
         <main className="flex-1 overflow-y-auto">
           <Outlet />
